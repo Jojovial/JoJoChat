@@ -1,52 +1,34 @@
 import socket
 import threading
 
-def receive_messages(client_socket):
-    while True:
-        try:
-            msg = client_socket.recv(1024).decode('utf-8')
-            if msg.lower() == 'quit':
-                print("Server disconnected")
-                break
-            else:
-                print(f"Server: {msg}")
-        except (ConnectionResetError, ConnectionAbortedError):
-            print("Connection lost")
-            break
-        except Exception as e:
-            print(f"Error: {e}")
-            break
-    client_socket.close()
+class SimpleClient:
+    def __init__(self, host='localhost', port=3000):
+        self.host = host
+        self.port = port
+        self.client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
-def send_messages(client_socket):
-    while True:
-        try:
-            msg = input("Message: ")
-            client_socket.send(msg.encode('utf-8'))
-            if msg.lower() == 'quit':
-                break
-        except (ConnectionResetError, ConnectionAbortedError):
-            print("Connection lost")
-            break
-        except Exception as e:
-            print(f"Error: {e}")
-            break
-    client_socket.close()
+    def start(self):
+        """Start the client and connect to the server."""
+        self.client_socket.connect((self.host, self.port))
+        print("Connected to the server")
 
-def start_client():
-    client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    client_socket.connect(("localhost", 3000))
-    print("Connected to the server")
+        receive_thread = threading.Thread(target=self.receive_messages)
+        send_thread = threading.Thread(target=self.send_messages)
 
-    receive_thread = threading.Thread(target=receive_messages, args=(client_socket,))
-    send_thread = threading.Thread(target=send_messages, args=(client_socket,))
+        receive_thread.start()
+        send_thread.start()
 
-    receive_thread.start()
-    send_thread.start()
+        receive_thread.join()
+        send_thread.join()
 
-    receive_thread.join()
-    send_thread.join()
-    print("Client disconnected")
+        print("Client disconnected")
 
-if __name__ == "__main__":
-    start_client()
+    def receive_messages(self):
+        """Receive messages from the server."""
+        while True:
+            try:
+                msg = self.client_socket.recv(1024).decode('utf-8')
+                if not msg:
+                    break
+                if msg.lower() == 'quit':
+
